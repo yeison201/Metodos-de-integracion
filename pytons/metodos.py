@@ -12,7 +12,7 @@ if not exists():
 # =====================================================================
 
 import math
-import numpy as np
+import numpy as npa
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -51,13 +51,28 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# Definición de logaritmo base 10 para SymPy
+class log10(sp.Function):
+    def _eval_evalf(self, prec):
+        return sp.log(self.args[0], 10)._eval_evalf(prec)
+
+    def _latex(self, printer):
+        return r"\log\left(%s\right)" % printer._print(self.args[0])
+
+# CATÁLOGO DE EJERCICIOS CON LOS 7 DEL PIZARRÓN
 EJERCICIOS_TALLER = {
     "1. Regla Trapezoidal": {
-        "∫ e^(-x^2) dx  en [0, 1] con n = 1": {
-            "f": "exp(-x^2)",
-            "a": 0.0,
-            "b": 1.0,
-            "n": 1,
+        "∫ sen(x) dx  en [3, 7] con n = 8 (Pizarrón)": {
+            "f": "sin(x)",
+            "a": 3.0,
+            "b": 7.0,
+            "n": 8,
+        },
+        "∫ ∛x dx  en [2, 3] con n = 4 (Pizarrón)": {
+            "f": "cbrt(x)",
+            "a": 2.0,
+            "b": 3.0,
+            "n": 4,
         },
         "∫ (x^2 - 3x + 2) dx  en [2, 5] con n = 6": {
             "f": "x^2 - 3x + 2",
@@ -65,16 +80,28 @@ EJERCICIOS_TALLER = {
             "b": 5.0,
             "n": 6,
         },
+        "∫ e^(-x^2) dx  en [0, 1] con n = 1": {
+            "f": "exp(-x^2)",
+            "a": 0.0,
+            "b": 1.0,
+            "n": 1,
+        },
         "Personalizado (Escribir función propia)": None,
     },
     "2. Método de Jorge Boole": {
+        "∫ log(x) dx  en [3, 7] con n = 4 (Pizarrón)": {
+            "f": "log10(x)",
+            "a": 3.0,
+            "b": 7.0,
+            "n": 4,
+        },
         "∫ x^4 dx  en [0, 2] con n = 4": {
             "f": "x^4",
             "a": 0.0,
             "b": 2.0,
             "n": 4,
         },
-        "∫ x^4 dx  en [0, 2] con n = 8 (Mayor precisión)": {
+        "∫ x^4 dx  en [0, 2] con n = 8": {
             "f": "x^4",
             "a": 0.0,
             "b": 2.0,
@@ -83,6 +110,18 @@ EJERCICIOS_TALLER = {
         "Personalizado (Escribir función propia)": None,
     },
     "3. Simpson 3/8 Newton-Cotes": {
+        "∫ ln(x) dx  en [0, 3] con n = 3 (Pizarrón)": {
+            "f": "ln(x)",
+            "a": 0.0,
+            "b": 3.0,
+            "n": 3,
+        },
+        "∫ cos(x) dx  en [2, 9] con n = 3 (Pizarrón)": {
+            "f": "cos(x)",
+            "a": 2.0,
+            "b": 9.0,
+            "n": 3,
+        },
         "∫ sqrt(x + 1) dx  en [0, 3] con n = 3": {
             "f": "sqrt(x + 1)",
             "a": 0.0,
@@ -98,6 +137,18 @@ EJERCICIOS_TALLER = {
         "Personalizado (Escribir función propia)": None,
     },
     "4. Simpson 1/3 Newton-Cotes": {
+        "∫ e^x dx  en [1, 3] con n = 2 (Pizarrón)": {
+            "f": "exp(x)",
+            "a": 1.0,
+            "b": 3.0,
+            "n": 2,
+        },
+        "∫ ∛x dx  en [2, 3] con n = 2 (Pizarrón)": {
+            "f": "cbrt(x)",
+            "a": 2.0,
+            "b": 3.0,
+            "n": 2,
+        },
         "∫ (x^3 + 2x) dx  en [0, 2] con n = 2": {
             "f": "x^3 + 2x",
             "a": 0.0,
@@ -113,6 +164,12 @@ EJERCICIOS_TALLER = {
         "Personalizado (Escribir función propia)": None,
     },
     "5. Simpson Abierto / Compuesto": {
+        "∫ tan(x) dx  en [3, 8] con n = 10 (Pizarrón)": {
+            "f": "tan(x)",
+            "a": 3.0,
+            "b": 8.0,
+            "n": 10,
+        },
         "∫ (x^3 + 2x) dx  en [0, 2] con n = 4": {
             "f": "x^3 + 2x",
             "a": 0.0,
@@ -123,15 +180,14 @@ EJERCICIOS_TALLER = {
     },
 }
 
-# Inicialización segura
 if "expr_input" not in st.session_state:
-    st.session_state["expr_input"] = "x^3 + 2x"
+    st.session_state["expr_input"] = "sin(x)"
 if "lim_a" not in st.session_state:
-    st.session_state["lim_a"] = 0.0
+    st.session_state["lim_a"] = 3.0
 if "lim_b" not in st.session_state:
-    st.session_state["lim_b"] = 2.0
+    st.session_state["lim_b"] = 7.0
 if "n_val" not in st.session_state:
-    st.session_state["n_val"] = 2
+    st.session_state["n_val"] = 8
 
 
 def add_to_formula(token):
@@ -180,16 +236,43 @@ def preparar_expresion(expr_str):
     if not expr_str or not expr_str.strip():
         return None
     limpia = (
-        expr_str.replace("^", "**").replace("sen(", "sin(").replace("ln(", "log(")
+        expr_str.replace("^", "**")
+        .replace("sen(", "sin(")
+        .replace("LN(", "ln(")
+        .replace("Ln(", "ln(")
     )
     limpia = limpia.replace("e**", "exp").replace("e^", "exp")
+
+    # Tratamiento de ln vs log (base 10)
+    limpia = limpia.replace("log10(", "LOGTEN(")
+    limpia = limpia.replace("ln(", "log(")        # SymPy log() es log natural
+    limpia = limpia.replace("log(", "LOGTEN(")     # log() del usuario es base 10
+    limpia = limpia.replace("LOGTEN(", "log10(")
+
+    dict_funciones = {
+        "log10": log10,
+        "cbrt": sp.cbrt,
+        "sqrt": sp.sqrt,
+        "sin": sp.sin,
+        "cos": sp.cos,
+        "tan": sp.tan,
+        "exp": sp.exp,
+        "pi": sp.pi,
+        "e": sp.E,
+    }
     return sp.parse_expr(
-        limpia, transformations=transformaciones, evaluate=False
+        limpia,
+        transformations=transformaciones,
+        evaluate=False,
+        local_dict=dict_funciones,
     )
 
 
 def evaluar_f(expr_str, val_x):
     simbolo_x = sp.Symbol("x")
+    # Si x = 0 en un logaritmo, evitamos crash aproximando al límite positivo
+    if val_x <= 0 and ("log" in expr_str.lower() or "ln" in expr_str.lower()):
+        val_x = 1e-7
     expr_sp = preparar_expresion(expr_str)
     if expr_sp is None:
         return 0.0
@@ -209,7 +292,7 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    st.subheader("📚 Ejercicios del Taller")
+    st.subheader("📚 Ejercicios del Taller y Pizarrón")
     lista_opciones = list(EJERCICIOS_TALLER[metodo].keys())
     st.selectbox(
         "Cargar ejercicio predefinido:",
@@ -221,7 +304,6 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("Parámetros del Intervalo")
 
-    # Controles dinámicos de n para TODOS los métodos
     if "Trapezoidal" in metodo:
         n = st.number_input(
             "Particiones (n ≥ 1):", min_value=1, step=1, key="n_val"
@@ -266,14 +348,14 @@ with st.sidebar:
         )
 
 
-# --- PANEL PRINCIPAL ---
+# --- ÁREA PRINCIPAL ---
 st.title("📐 Calculadora de Integración Numérica")
-
 st.markdown("### 1. Función Matemática $f(x)$")
+
 st.text_input(
     "Escriba o modifique la función:",
     key="expr_input",
-    placeholder="Ej: x^3 + 2x, 1/x, sqrt(x + 1), exp(-x^2), cos(x)",
+    placeholder="Ej: sin(x), cbrt(x), ln(x), log(x), exp(x), tan(x)",
 )
 
 expr_actual = st.session_state.get("expr_input", "").strip()
@@ -283,7 +365,10 @@ if not expr_actual:
 else:
     try:
         expr_sp = preparar_expresion(expr_actual)
-        latex_f = sp.latex(expr_sp)
+        try:
+            latex_f = sp.latex(expr_sp, ln_notation=True)
+        except TypeError:
+            latex_f = sp.latex(expr_sp)
         limite_a_str = f"{a:g}"
         limite_b_str = f"{b:g}"
         st.info("📖 **VISTA PREVIA DEL EJERCICIO:**")
@@ -293,6 +378,7 @@ else:
     except Exception:
         st.warning("⚠️ Escribiendo función...")
 
+# --- TECLADO VIRTUAL DE SÍMBOLOS RÁPIDOS ---
 with st.expander("⌨️ Teclado de Símbolos Rápidos", expanded=False):
     c1, c2, c3, c4, c5, c6, c7, c8 = st.columns(8)
     c1.button("x", on_click=add_to_formula, args=("x",))
@@ -300,25 +386,26 @@ with st.expander("⌨️ Teclado de Símbolos Rápidos", expanded=False):
     c3.button("^3", on_click=add_to_formula, args=("^3",))
     c4.button("^", on_click=add_to_formula, args=("^",))
     c5.button("√x", on_click=add_to_formula, args=("sqrt(",))
-    c6.button("(", on_click=add_to_formula, args=("(",))
-    c7.button(")", on_click=add_to_formula, args=(")",))
-    c8.button("/", on_click=add_to_formula, args=("/",))
+    c6.button("∛x", on_click=add_to_formula, args=("cbrt(",))
+    c7.button("(", on_click=add_to_formula, args=("(",))
+    c8.button(")", on_click=add_to_formula, args=(")",))
 
     c9, c10, c11, c12, c13, c14, c15, c16 = st.columns(8)
     c9.button("+", on_click=add_to_formula, args=("+",))
     c10.button("-", on_click=add_to_formula, args=("-",))
     c11.button("·", on_click=add_to_formula, args=("*",))
-    c12.button("eˣ", on_click=add_to_formula, args=("exp(",))
-    c13.button("ln(x)", on_click=add_to_formula, args=("log(",))
-    c14.button("cos(x)", on_click=add_to_formula, args=("cos(",))
-    c15.button("sin(x)", on_click=add_to_formula, args=("sin(",))
+    c12.button("/", on_click=add_to_formula, args=("/",))
+    c13.button("eˣ", on_click=add_to_formula, args=("exp(",))
+    c14.button("ln(x)", on_click=add_to_formula, args=("ln(",))
+    c15.button("log(x)", on_click=add_to_formula, args=("log10(",))
     c16.button("π", on_click=add_to_formula, args=("pi",))
 
-    c17, c18 = st.columns([1, 1])
-    c17.button("⌫ Borrar", on_click=add_to_formula, args=("DEL",))
-    c18.button(
-        "Limpiar todo", on_click=add_to_formula, args=("CLEAR",), type="primary"
-    )
+    c17, c18, c19, c20, c21 = st.columns([1, 1, 1, 1, 1])
+    c17.button("sin(x)", on_click=add_to_formula, args=("sin(",))
+    c18.button("cos(x)", on_click=add_to_formula, args=("cos(",))
+    c19.button("tan(x)", on_click=add_to_formula, args=("tan(",))
+    c20.button("⌫ Borrar", on_click=add_to_formula, args=("DEL",))
+    c21.button("Limpiar todo", on_click=add_to_formula, args=("CLEAR",), type="primary")
 
 # --- BOTÓN DE CÁLCULO ---
 if st.button("🚀 Calcular Integral Paso a Paso", type="primary"):
@@ -342,7 +429,6 @@ if st.button("🚀 Calcular Integral Paso a Paso", type="primary"):
             nombre_metodo = "Regla Trapezoidal"
 
         elif "Boole" in metodo:
-            # Coeficientes de Boole para cualquier múltiplo de 4
             coefs = [7]
             for i in range(1, n):
                 if i % 4 == 0:
@@ -366,11 +452,14 @@ if st.button("🚀 Calcular Integral Paso a Paso", type="primary"):
             nombre_metodo = "Simpson 3/8 Newton-Cotes"
 
         elif "1/3 Newton" in metodo or "Abierto" in metodo:
-            # Coeficientes de Simpson 1/3 para cualquier n par
             coefs = [1] + [4 if i % 2 != 0 else 2 for i in range(1, n)] + [1]
             factor = delta / 3
             factor_latex = r"\frac{\Delta}{3}"
-            nombre_metodo = "Simpson 1/3 Newton-Cotes" if "1/3 Newton" in metodo else "Simpson Abierto / Compuesto"
+            nombre_metodo = (
+                "Simpson 1/3 Newton-Cotes"
+                if "1/3 Newton" in metodo
+                else "Simpson Abierto / Compuesto"
+            )
 
         productos = [c * f for c, f in zip(coefs, fs)]
         suma_ponderada = sum(productos)
@@ -392,7 +481,7 @@ if st.button("🚀 Calcular Integral Paso a Paso", type="primary"):
         )
 
         with tab_grafica:
-            x_fino = np.linspace(a - (b - a) * 0.08, b + (b - a) * 0.08, 300)
+            x_fino = np.linspace(a - (b - a) * 0.05, b + (b - a) * 0.05, 300)
             y_fino = [evaluar_f(expr_actual, x) for x in x_fino]
 
             fig = go.Figure()
@@ -431,7 +520,12 @@ if st.button("🚀 Calcular Integral Paso a Paso", type="primary"):
         with tab_tabla:
             df = pd.DataFrame(
                 {
-                    "Punto": [f"x_{i+1}" if "Boole" in metodo or "3/8" in metodo or "1/3" in metodo else f"x_{i}" for i in range(len(xs))],
+                    "Punto": [
+                        f"x_{i+1}"
+                        if "Boole" in metodo or "3/8" in metodo or "1/3" in metodo
+                        else f"x_{i}"
+                        for i in range(len(xs))
+                    ],
                     "x_i": xs,
                     "f(x_i)": fs,
                     "Coeficiente": coefs,
@@ -439,8 +533,10 @@ if st.button("🚀 Calcular Integral Paso a Paso", type="primary"):
                 }
             )
             st.dataframe(
-                df.style.format("{:.6f}", subset=["x_i", "f(x_i)", "Coef × f(x_i)"]),
-                width="stretch"
+                df.style.format(
+                    "{:.6f}", subset=["x_i", "f(x_i)", "Coef × f(x_i)"]
+                ),
+                width="stretch",
             )
             st.info(f"**Suma total ponderada (Σ):** `{suma_ponderada:.6f}`")
 
