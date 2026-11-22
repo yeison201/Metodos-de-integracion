@@ -232,9 +232,21 @@ transformaciones = standard_transformations + (
 )
 
 
+# --- CLASE PARA LOGARITMO EN BASE 10 ---
+class log10(sp.Function):
+    def _eval_evalf(self, prec):
+        return sp.log(self.args[0], 10)._eval_evalf(prec)
+
+    def _latex(self, printer):
+        return r"\log\left(%s\right)" % printer._print(self.args[0])
+
+
+# --- FUNCIÓN PRINCIPAL DE PREPARACIÓN DE EXPRESIONES ---
 def preparar_expresion(expr_str):
     if not expr_str or not expr_str.strip():
         return None
+
+    # Normalización de símbolos y funciones en español
     limpia = (
         expr_str.replace("^", "**")
         .replace("sen(", "sin(")
@@ -245,13 +257,19 @@ def preparar_expresion(expr_str):
 
     # Tratamiento de ln vs log (base 10)
     limpia = limpia.replace("log10(", "LOGTEN(")
-    limpia = limpia.replace("ln(", "log(")        # SymPy log() es log natural
-    limpia = limpia.replace("log(", "LOGTEN(")     # log() del usuario es base 10
+    limpia = limpia.replace("ln(", "log(")        # SymPy log() es logaritmo natural
+    limpia = limpia.replace("log(", "LOGTEN(")     # log() del usuario se interpreta como base 10
     limpia = limpia.replace("LOGTEN(", "log10(")
 
+    # Raíz segura: si el usuario olvida poner la coma o el índice (ej: root(4+x)), asume índice 2
+    def root_segura(expresion, indice=2):
+        return sp.root(expresion, indice)
+
+    # Diccionario de funciones permitidas y personalizadas
     dict_funciones = {
         "log10": log10,
         "cbrt": sp.cbrt,
+        "root": root_segura,
         "sqrt": sp.sqrt,
         "sin": sp.sin,
         "cos": sp.cos,
@@ -260,6 +278,7 @@ def preparar_expresion(expr_str):
         "pi": sp.pi,
         "e": sp.E,
     }
+
     return sp.parse_expr(
         limpia,
         transformations=transformaciones,
@@ -378,34 +397,38 @@ else:
     except Exception:
         st.warning("⚠️ Escribiendo función...")
 
-# --- TECLADO VIRTUAL DE SÍMBOLOS RÁPIDOS ---
+# --- TECLADO VIRTUAL DE SÍMBOLOS RÁPIDOS (ACTUALIZADO) ---
 with st.expander("⌨️ Teclado de Símbolos Rápidos", expanded=False):
-    c1, c2, c3, c4, c5, c6, c7, c8 = st.columns(8)
-    c1.button("x", on_click=add_to_formula, args=("x",))
-    c2.button("^2", on_click=add_to_formula, args=("^2",))
-    c3.button("^3", on_click=add_to_formula, args=("^3",))
-    c4.button("^", on_click=add_to_formula, args=("^",))
-    c5.button("√x", on_click=add_to_formula, args=("sqrt(",))
-    c6.button("∛x", on_click=add_to_formula, args=("cbrt(",))
-    c7.button("(", on_click=add_to_formula, args=("(",))
-    c8.button(")", on_click=add_to_formula, args=(")",))
+    # Fila 1 (9 botones: variables, potencias, raíces y paréntesis)
+    f1_1, f1_2, f1_3, f1_4, f1_5, f1_6, f1_7, f1_8, f1_9 = st.columns(9)
+    f1_1.button("x", on_click=add_to_formula, args=("x",))
+    f1_2.button("^2", on_click=add_to_formula, args=("^2",))
+    f1_3.button("^3", on_click=add_to_formula, args=("^3",))
+    f1_4.button("^", on_click=add_to_formula, args=("^",))
+    f1_5.button("√x", on_click=add_to_formula, args=("sqrt(",))
+    f1_6.button("∛x", on_click=add_to_formula, args=("cbrt(",))
+    f1_7.button("ⁿ√x", on_click=add_to_formula, args=("root(",))
+    f1_8.button("(", on_click=add_to_formula, args=("(",))
+    f1_9.button(")", on_click=add_to_formula, args=(")",))
 
-    c9, c10, c11, c12, c13, c14, c15, c16 = st.columns(8)
-    c9.button("+", on_click=add_to_formula, args=("+",))
-    c10.button("-", on_click=add_to_formula, args=("-",))
-    c11.button("·", on_click=add_to_formula, args=("*",))
-    c12.button("/", on_click=add_to_formula, args=("/",))
-    c13.button("eˣ", on_click=add_to_formula, args=("exp(",))
-    c14.button("ln(x)", on_click=add_to_formula, args=("ln(",))
-    c15.button("log(x)", on_click=add_to_formula, args=("log10(",))
-    c16.button("π", on_click=add_to_formula, args=("pi",))
+    # Fila 2 (8 botones: operadores y funciones trascendentes)
+    f2_1, f2_2, f2_3, f2_4, f2_5, f2_6, f2_7, f2_8 = st.columns(8)
+    f2_1.button("+", on_click=add_to_formula, args=("+",))
+    f2_2.button("-", on_click=add_to_formula, args=("-",))
+    f2_3.button("·", on_click=add_to_formula, args=("*",))
+    f2_4.button("/", on_click=add_to_formula, args=("/",))
+    f2_5.button("eˣ", on_click=add_to_formula, args=("exp(",))
+    f2_6.button("ln(x)", on_click=add_to_formula, args=("ln(",))
+    f2_7.button("log(x)", on_click=add_to_formula, args=("log10(",))
+    f2_8.button("π", on_click=add_to_formula, args=("pi",))
 
-    c17, c18, c19, c20, c21 = st.columns([1, 1, 1, 1, 1])
-    c17.button("sin(x)", on_click=add_to_formula, args=("sin(",))
-    c18.button("cos(x)", on_click=add_to_formula, args=("cos(",))
-    c19.button("tan(x)", on_click=add_to_formula, args=("tan(",))
-    c20.button("⌫ Borrar", on_click=add_to_formula, args=("DEL",))
-    c21.button("Limpiar todo", on_click=add_to_formula, args=("CLEAR",), type="primary")
+    # Fila 3 (5 botones: trigonométricas y borrado)
+    f3_1, f3_2, f3_3, f3_4, f3_5 = st.columns([1, 1, 1, 1, 1])
+    f3_1.button("sin(x)", on_click=add_to_formula, args=("sin(",))
+    f3_2.button("cos(x)", on_click=add_to_formula, args=("cos(",))
+    f3_3.button("tan(x)", on_click=add_to_formula, args=("tan(",))
+    f3_4.button("⌫ Borrar", on_click=add_to_formula, args=("DEL",))
+    f3_5.button("Limpiar todo", on_click=add_to_formula, args=("CLEAR",), type="primary")
 
 # --- BOTÓN DE CÁLCULO ---
 if st.button("🚀 Calcular Integral Paso a Paso", type="primary"):
